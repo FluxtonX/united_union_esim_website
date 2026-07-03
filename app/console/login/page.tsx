@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
 
+import { API_BASE_URL } from '../../config';
+
 export default function ConsoleLogin() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -20,7 +22,7 @@ export default function ConsoleLogin() {
     setInfoMsg(null);
 
     try {
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

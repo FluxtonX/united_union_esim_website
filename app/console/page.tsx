@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
+import { API_BASE_URL } from '../config';
+
 export default function ConsoleRoot() {
   const router = useRouter();
 
@@ -17,7 +19,7 @@ export default function ConsoleRoot() {
       }
 
       try {
-        const response = await fetch('http://localhost:3000/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

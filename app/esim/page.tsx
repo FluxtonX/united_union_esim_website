@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../config';
 import {
   Loader2,
   ChevronDown,
@@ -73,7 +74,7 @@ function EsimDetailsContent() {
       attempts += 1;
       try {
         // Query order-status endpoint in payment module using order UUID
-        const response = await fetch(`http://localhost:3000/payment/order-status?session_id=${orderId}`);
+        const response = await fetch(`${API_BASE_URL}/payment/order-status?session_id=${orderId}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {

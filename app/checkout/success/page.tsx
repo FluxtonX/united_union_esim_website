@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../../config';
 import { CheckCircle, Loader2, Copy, Check, ExternalLink, ArrowLeft } from 'lucide-react';
 
 function CheckoutSuccessContent() {
@@ -52,7 +53,7 @@ function CheckoutSuccessContent() {
     const interval = setInterval(async () => {
       attempts += 1;
       try {
-        const response = await fetch(`http://localhost:3000/payment/order-status?session_id=${sessionId}`);
+        const response = await fetch(`${API_BASE_URL}/payment/order-status?session_id=${sessionId}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {

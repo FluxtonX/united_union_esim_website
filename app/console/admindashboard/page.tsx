@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_BASE_URL } from '../../config';
 import {
   LayoutDashboard,
   BarChart3,
@@ -131,7 +132,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:3000/auth/logout', {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -145,7 +146,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     setSaveLoading(true);
     try {
-      await fetch('http://localhost:3000/providers/keys', {
+      await fetch(`${API_BASE_URL}/providers/keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, isSandbox }),
@@ -162,7 +163,7 @@ export default function AdminDashboard() {
     }
     setRefundLoading(orderId);
     try {
-      const response = await fetch('http://localhost:3000/payment/refund', {
+      const response = await fetch(`${API_BASE_URL}/payment/refund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId }),

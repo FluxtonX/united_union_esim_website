@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Globe, ChevronDown, ChevronsUpDown, Loader2, ArrowRight } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
 interface PlanItem {
   id: string;
@@ -136,7 +137,7 @@ export default function Home() {
     setCheckoutLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/payment/guest-checkout', {
+      const response = await fetch(`${API_BASE_URL}/payment/guest-checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

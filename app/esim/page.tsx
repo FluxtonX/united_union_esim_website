@@ -3,8 +3,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../config';
+import { PremiumLoader } from '../../components/premium-loader';
 import {
-  Loader2,
   ChevronDown,
   ChevronUp,
   QrCode,
@@ -148,7 +148,7 @@ function EsimDetailsContent() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-[#1e63ff]" size={40} />
+          <PremiumLoader size={40} color="#1e63ff" />
           <h2 className="text-lg font-bold text-slate-800 font-sans">Retrieving eSIM profile...</h2>
           <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
             We are fetching your cellular profile coordinates from the database.
@@ -502,7 +502,7 @@ export default function EsimDetailsPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center py-20 px-6">
-        <Loader2 className="animate-spin text-[#1e63ff]" size={36} />
+        <PremiumLoader size={36} color="#1e63ff" />
       </div>
     }>
       <EsimDetailsContent />

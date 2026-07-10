@@ -3,7 +3,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../../config';
-import { CheckCircle, Loader2, Copy, Check, ExternalLink, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Copy, Check, ExternalLink, ArrowLeft } from 'lucide-react';
+import { PremiumLoader } from '../../../components/premium-loader';
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
@@ -98,7 +99,7 @@ function CheckoutSuccessContent() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-[#1e63ff]" size={40} />
+          <PremiumLoader size={40} color="#1e63ff" />
           <h2 className="text-lg font-bold text-slate-800 font-sans">Verifying your payment...</h2>
           <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
             Please wait while we confirm your Stripe checkout session. This usually takes a few seconds.
@@ -233,7 +234,7 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center py-20 px-6">
-        <Loader2 className="animate-spin text-[#1e63ff]" size={36} />
+        <PremiumLoader size={36} color="#1e63ff" />
       </div>
     }>
       <CheckoutSuccessContent />

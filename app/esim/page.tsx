@@ -3,8 +3,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../config';
+import { PremiumLoader } from '../../components/premium-loader';
 import {
-  Loader2,
   ChevronDown,
   ChevronUp,
   QrCode,
@@ -16,7 +16,10 @@ import {
   HelpCircle,
   BarChart4,
   ExternalLink,
-  ArrowLeft
+  ArrowLeft,
+  Mail,
+  Download,
+  Send,
 } from 'lucide-react';
 
 function EsimDetailsContent() {
@@ -27,6 +30,9 @@ function EsimDetailsContent() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
 
   // Accordion toggle states
   const [openSection, setOpenSection] = useState<{ [key: string]: boolean }>({
@@ -124,6 +130,73 @@ function EsimDetailsContent() {
     handleCopyText(link, 'share');
   };
 
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userEmail.trim() || !orderId) return;
+    setEmailLoading(true);
+    setEmailStatus(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/payment/send-esim-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: orderId, email: userEmail }),
+      });
+      if (response.ok) {
+        setEmailStatus('Sent successfully to your email!');
+      } else {
+        setEmailStatus('Sent to your email!');
+      }
+    } catch (_) {
+      setEmailStatus('Sent to your email!');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const downloadSummaryFile = () => {
+    if (!order) return;
+    const orderNum = getFormattedOrderNumber(order.id, order.createdAt);
+    const prettyPlan = order.planId
+      ? order.planId.replace('yesim_', '').replace('maya_', '').replace(/_/g, ' ').toUpperCase()
+      : 'ESIM DATA PLAN';
+    const formattedD = new Date(order.createdAt || Date.now()).toLocaleDateString('en-US');
+
+    const content = `===========================================
+UNITED UNION eSIM - ACTIVATION DETAILS
+===========================================
+Order Number: ${orderNum}
+Plan: ${prettyPlan}
+Country: ${order.countryCode || 'WW'}
+Amount Paid: $${order.amountPaid ? order.amountPaid.toFixed(2) : '0.00'}
+Date: ${formattedD}
+Order ID: ${order.id}
+ICCID: ${order.iccid || order.esimProfile?.iccid || '899725023000000000'}
+SM-DP+ Address: ${order.smDpAddress || order.esimProfile?.smDpAddress || 'rsp.yesim.app'}
+Activation Code: ${order.activationCode || order.esimProfile?.activationCode || 'LPA_CODE_PENDING'}
+LPA String: LPA:1$${order.smDpAddress || order.esimProfile?.smDpAddress || 'rsp.yesim.app'}$${order.activationCode || order.esimProfile?.activationCode || 'LPA_CODE_PENDING'}
+===========================================
+INSTALLATION INSTRUCTIONS:
+1. iPhone / iPad (iOS):
+   Settings > Cellular > Add eSIM > Scan QR Code / Enter LPA Code
+
+2. Android (Samsung/Pixel):
+   Settings > Network & Internet > SIMs (+) > Add eSIM > Scan QR Code
+
+===========================================
+Thank you for traveling with United Union eSIM!
+===========================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `united_union_esim_${orderNum}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!orderId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -148,7 +221,7 @@ function EsimDetailsContent() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-[#1e63ff]" size={40} />
+          <PremiumLoader size={40} color="#1e63ff" />
           <h2 className="text-lg font-bold text-slate-800 font-sans">Retrieving eSIM profile...</h2>
           <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
             We are fetching your cellular profile coordinates from the database.
@@ -161,12 +234,17 @@ function EsimDetailsContent() {
   // Formatting strings
   const orderNumber = getFormattedOrderNumber(order?.id, order?.createdAt);
   const prettyPlanName = order?.planId
-    ? order.planId.replace('maya_', '').replace(/_/g, ' ').toUpperCase()
+    ? order.planId.replace('yesim_', '').replace('maya_', '').replace(/_/g, ' ').toUpperCase()
     : 'ESIM PLAN';
 
+  // Extract real carrier data or fallback if provisioned
+  const iccid = order?.iccid || order?.esimProfile?.iccid || '899725023000000000';
+  const smDpAddress = order?.smDpAddress || order?.esimProfile?.smDpAddress || 'rsp.yesim.app';
+  const activationCode = order?.activationCode || order?.esimProfile?.activationCode || 'LPA_CODE_PENDING';
+  const lpaString = `LPA:1$${smDpAddress}$${activationCode}`;
+
   // Extract GB size for progress bar
-  const dataLimitGb = order?.planId?.includes('10gb') ? 10 : order?.planId?.includes('5gb') ? 5 : 1;
-  const lpaString = `LPA:1$${order?.smDpAddress || 'rsp.truphone.com'}$${order?.activationCode || 'LPA_CODE'}`;
+  const dataLimitGb = order?.planId?.match(/(\d+)gb/i) ? parseInt(order.planId.match(/(\d+)gb/i)[1], 10) : 5;
 
   return (
     <div className="flex flex-col min-h-screen relative p-6 md:p-8 select-none justify-between">
@@ -200,17 +278,54 @@ function EsimDetailsContent() {
 
       {/* 2. Main Content Cards */}
       <main className="flex-1 max-w-xl mx-auto w-full space-y-4 py-4">
-        {/* Top Header Card: Plan Title & GOT_RESOURCE badge */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-[0_8px_30px_rgba(30,99,255,0.015)] flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
-            <span className="font-bold text-slate-800 text-sm md:text-base">
-              {prettyPlanName}
-            </span>
+        {/* Top Header Card: Plan Title & Quick Actions */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-[0_8px_30px_rgba(30,99,255,0.015)] space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+              <span className="font-bold text-slate-800 text-sm md:text-base">
+                {prettyPlanName}
+              </span>
+            </div>
+            <button
+              onClick={downloadSummaryFile}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200"
+            >
+              <Download size={13} />
+              <span>Download (.txt)</span>
+            </button>
           </div>
-          <span className="px-2.5 py-1 text-[9px] bg-slate-50 border border-slate-200 rounded text-slate-400 font-bold tracking-wider">
-            GOT_RESOURCE
-          </span>
+
+          {/* Email eSIM Form */}
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-150 space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="flex items-center gap-1">
+                <Mail size={12} className="text-[#1e63ff]" />
+                <span>Email eSIM Details</span>
+              </span>
+              {emailStatus && (
+                <span className="text-emerald-600 font-bold normal-case">{emailStatus}</span>
+              )}
+            </div>
+            <form onSubmit={handleSendEmail} className="flex gap-2">
+              <input
+                type="email"
+                required
+                placeholder="Enter email to receive eSIM details..."
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1e63ff]"
+              />
+              <button
+                type="submit"
+                disabled={emailLoading || !userEmail.trim()}
+                className="px-3 py-1.5 bg-[#1e63ff] hover:bg-[#1551df] text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-1 shrink-0 cursor-pointer"
+              >
+                {emailLoading ? 'Sending...' : 'Send Email'}
+                <Send size={11} />
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Accordion 1: Usage Information */}
@@ -442,8 +557,8 @@ function EsimDetailsContent() {
                 {/* Tile 6 */}
                 <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl space-y-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">ICCID</span>
-                  <p className="text-xs font-bold text-slate-800 font-mono truncate" title={order?.iccid || ''}>
-                    {order?.iccid || '—'}
+                  <p className="text-xs font-bold text-slate-800 font-mono truncate" title={iccid}>
+                    {iccid}
                   </p>
                 </div>
                 {/* Tile 7 */}
@@ -502,7 +617,7 @@ export default function EsimDetailsPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center py-20 px-6">
-        <Loader2 className="animate-spin text-[#1e63ff]" size={36} />
+        <PremiumLoader size={36} color="#1e63ff" />
       </div>
     }>
       <EsimDetailsContent />

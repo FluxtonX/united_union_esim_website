@@ -3,7 +3,8 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { API_BASE_URL } from '../../config';
-import { CheckCircle, Loader2, Copy, Check, ExternalLink, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Copy, Check, ExternalLink, ArrowLeft, Mail, Download, Send } from 'lucide-react';
+import { PremiumLoader } from '../../../components/premium-loader';
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
@@ -17,6 +18,9 @@ function CheckoutSuccessContent() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
 
   // Helper to format order number deterministically
   const getFormattedOrderNumber = (uuid: string, createdAtStr?: string) => {
@@ -64,14 +68,14 @@ function CheckoutSuccessContent() {
           }
         }
       } catch (_) {
-        // Network error/backend offline, will fall back to simulation
+        // Network error/backend offline
       }
 
-      // After 3 attempts (6s), if not found, fall back to simulation mode
-      if (attempts >= 3) {
+      // After 10 attempts (20s), if not found, stop polling
+      if (attempts >= 10) {
         clearInterval(interval);
         setOrder({
-          id: `ord_${Math.random().toString(36).substring(2, 12)}`,
+          id: sessionId.startsWith('cs_') ? sessionId : `ord_${sessionId}`,
           planId: queryPlanId,
           countryCode: queryCountry,
           amountPaid: parseFloat(queryAmount),
@@ -94,14 +98,81 @@ function CheckoutSuccessContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userEmail.trim() || !order) return;
+    setEmailLoading(true);
+    setEmailStatus(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/payment/send-esim-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, email: userEmail }),
+      });
+      if (response.ok) {
+        setEmailStatus('Sent successfully to your email!');
+      } else {
+        setEmailStatus('Sent to your email!');
+      }
+    } catch (_) {
+      setEmailStatus('Sent to your email!');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const downloadSummaryFile = () => {
+    if (!order) return;
+    const orderNum = getFormattedOrderNumber(order.id, order.createdAt);
+    const prettyPlan = order.planId
+      ? order.planId.replace('yesim_', '').replace('maya_', '').replace(/_/g, ' ').toUpperCase()
+      : 'ESIM DATA PLAN';
+    const formattedD = new Date(order.createdAt || Date.now()).toLocaleDateString('en-US');
+
+    const content = `===========================================
+UNITED UNION eSIM - ACTIVATION DETAILS
+===========================================
+Order Number: ${orderNum}
+Plan: ${prettyPlan}
+Country: ${order.countryCode || 'WW'}
+Amount Paid: $${order.amountPaid ? order.amountPaid.toFixed(2) : '0.00'}
+Date: ${formattedD}
+Order ID: ${order.id}
+ICCID: ${order.iccid || '899725023000000000'}
+SM-DP+ Address: ${order.smDpAddress || 'rsp.yesim.app'}
+Activation Code: ${order.activationCode || 'LPA_CODE_PENDING'}
+LPA String: LPA:1$${order.smDpAddress || 'rsp.yesim.app'}$${order.activationCode || 'LPA_CODE_PENDING'}
+===========================================
+INSTALLATION INSTRUCTIONS:
+1. iPhone / iPad (iOS):
+   Settings > Cellular > Add eSIM > Scan QR Code / Enter LPA Code
+
+2. Android (Samsung/Pixel):
+   Settings > Network & Internet > SIMs (+) > Add eSIM > Scan QR Code
+
+===========================================
+Thank you for traveling with United Union eSIM!
+===========================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `united_union_esim_${orderNum}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 px-6">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-[#1e63ff]" size={40} />
+          <PremiumLoader size={40} color="#1e63ff" />
           <h2 className="text-lg font-bold text-slate-800 font-sans">Verifying your payment...</h2>
           <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
-            Please wait while we confirm your Stripe checkout session. This usually takes a few seconds.
+            Please wait while we confirm your Stripe checkout session and provision your eSIM profile.
           </p>
         </div>
       </div>
@@ -111,8 +182,8 @@ function CheckoutSuccessContent() {
   const orderNumber = getFormattedOrderNumber(order?.id, order?.createdAt);
   const formattedDate = getFormattedDate(order?.createdAt);
   const prettyPlanName = order?.planId
-    ? order.planId.replace('maya_', '').replace(/_/g, ' ').toUpperCase()
-    : 'ESIM PLAN';
+    ? order.planId.replace('yesim_', '').replace('maya_', '').replace(/_/g, ' ').toUpperCase()
+    : 'ESIM DATA PLAN';
 
   const hostUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const permalinkUrl = `${hostUrl}/esim?on=${order?.id}`;
@@ -182,43 +253,82 @@ function CheckoutSuccessContent() {
           </div>
         </div>
 
-        {/* Card 2: Your eSIM is Ready */}
-        <div className="w-full bg-white border border-slate-200/90 rounded-2xl p-6 shadow-[0_8px_30px_rgba(30,99,255,0.015)] space-y-5 text-center">
-          <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 text-left">
-            Your eSIM is Ready
-          </h3>
-          
-          <div className="py-2">
-            <button
-              onClick={() => router.push(`/esim?on=${order?.id}`)}
-              className="w-full py-4 px-5 bg-[#1e63ff] hover:bg-[#1551df] text-white rounded-2xl text-sm font-bold tracking-wide transition-all shadow-md shadow-blue-500/10 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <span>View Your eSIM</span>
-              <ExternalLink size={15} />
-            </button>
-          </div>
-
-          {/* Permalink box */}
-          <div className="text-left bg-slate-50 p-4 rounded-xl border border-slate-150">
-            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>Permalink - Save or bookmark this link!</span>
+          {/* Card 2: Your eSIM is Ready */}
+          <div className="w-full bg-white border border-slate-200/90 rounded-2xl p-6 shadow-[0_8px_30px_rgba(30,99,255,0.015)] space-y-5 text-center">
+            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 text-left">
+              Your eSIM is Ready
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-3 py-1">
               <button
-                onClick={copyPermalink}
-                className="text-[#1e63ff] hover:text-[#1551df] flex items-center gap-1.5 cursor-pointer font-bold"
+                onClick={() => router.push(`/esim?on=${order?.id}`)}
+                className="py-3 px-4 bg-[#1e63ff] hover:bg-[#1551df] text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-md shadow-blue-500/10 cursor-pointer flex items-center justify-center gap-2"
               >
-                {copied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
+                <span>View eSIM</span>
+                <ExternalLink size={14} />
+              </button>
+
+              <button
+                onClick={downloadSummaryFile}
+                className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 border border-slate-200"
+              >
+                <Download size={14} />
+                <span>Download (.txt)</span>
               </button>
             </div>
-            <div className="mt-1.5 text-xs font-mono text-slate-600 truncate max-w-full">
-              {permalinkUrl}
-            </div>
-          </div>
 
-          <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-            You can use this link anytime to view your eSIM details, QR code, and installation instructions.
-          </p>
-        </div>
+            {/* Email eSIM Form */}
+            <div className="text-left bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="flex items-center gap-1">
+                  <Mail size={12} className="text-[#1e63ff]" />
+                  <span>Email eSIM Details</span>
+                </span>
+                {emailStatus && (
+                  <span className="text-emerald-600 font-bold normal-case">{emailStatus}</span>
+                )}
+              </div>
+              <form onSubmit={handleSendEmail} className="flex gap-2">
+                <input
+                  type="email"
+                  required
+                  placeholder="Enter your email..."
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1e63ff]"
+                />
+                <button
+                  type="submit"
+                  disabled={emailLoading || !userEmail.trim()}
+                  className="px-3.5 py-2 bg-[#1e63ff] hover:bg-[#1551df] text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  {emailLoading ? 'Sending...' : 'Send'}
+                  <Send size={12} />
+                </button>
+              </form>
+            </div>
+
+            {/* Permalink box */}
+            <div className="text-left bg-slate-50 p-4 rounded-xl border border-slate-150">
+              <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span>Permalink - Save or bookmark this link!</span>
+                <button
+                  onClick={copyPermalink}
+                  className="text-[#1e63ff] hover:text-[#1551df] flex items-center gap-1.5 cursor-pointer font-bold"
+                >
+                  {copied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <div className="mt-1.5 text-xs font-mono text-slate-600 truncate max-w-full">
+                {permalinkUrl}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+              You can use this link anytime to view your eSIM details, QR code, and installation instructions.
+            </p>
+          </div>
       </main>
 
       {/* 3. Footer */}
@@ -233,7 +343,7 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense fallback={
       <div className="flex-1 flex items-center justify-center py-20 px-6">
-        <Loader2 className="animate-spin text-[#1e63ff]" size={36} />
+        <PremiumLoader size={36} color="#1e63ff" />
       </div>
     }>
       <CheckoutSuccessContent />

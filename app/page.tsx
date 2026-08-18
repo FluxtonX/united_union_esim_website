@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Globe, ChevronDown, ChevronsUpDown, Loader2, ArrowRight } from 'lucide-react';
+import { Search, Globe, ChevronDown, ChevronsUpDown, ArrowRight } from 'lucide-react';
+import { PremiumLoader } from '../components/premium-loader';
 import { API_BASE_URL } from './config';
 
 interface PlanItem {
@@ -19,15 +20,15 @@ interface CountryItem {
   plans: PlanItem[];
 }
 
-const SUPPORTED_COUNTRIES: CountryItem[] = [
+const STATIC_FALLBACK_COUNTRIES: CountryItem[] = [
   {
     name: 'United States',
     code: 'US',
     flag: '🇺🇸',
     plans: [
-      { id: 'maya_us_1gb_7d', name: 'US Lite', dataGb: 1, durationDays: 7, priceUsd: 4.90 },
-      { id: 'maya_us_5gb_30d', name: 'US Smart', dataGb: 5, durationDays: 30, priceUsd: 12.50 },
-      { id: 'maya_us_10gb_30d', name: 'US Premium', dataGb: 10, durationDays: 30, priceUsd: 22.00 },
+      { id: 'yesim_us_1gb_7d', name: 'US Lite', dataGb: 1, durationDays: 7, priceUsd: 4.90 },
+      { id: 'yesim_us_5gb_30d', name: 'US Smart', dataGb: 5, durationDays: 30, priceUsd: 12.50 },
+      { id: 'yesim_us_10gb_30d', name: 'US Premium', dataGb: 10, durationDays: 30, priceUsd: 22.00 },
     ],
   },
   {
@@ -35,9 +36,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'GB',
     flag: '🇬🇧',
     plans: [
-      { id: 'maya_gb_1gb_7d', name: 'UK Lite', dataGb: 1, durationDays: 7, priceUsd: 5.50 },
-      { id: 'maya_gb_5gb_30d', name: 'UK Smart', dataGb: 5, durationDays: 30, priceUsd: 13.90 },
-      { id: 'maya_gb_10gb_30d', name: 'UK Premium', dataGb: 10, durationDays: 30, priceUsd: 24.50 },
+      { id: 'yesim_gb_1gb_7d', name: 'UK Lite', dataGb: 1, durationDays: 7, priceUsd: 5.50 },
+      { id: 'yesim_gb_5gb_30d', name: 'UK Smart', dataGb: 5, durationDays: 30, priceUsd: 13.90 },
+      { id: 'yesim_gb_10gb_30d', name: 'UK Premium', dataGb: 10, durationDays: 30, priceUsd: 24.50 },
     ],
   },
   {
@@ -45,9 +46,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'TR',
     flag: '🇹🇷',
     plans: [
-      { id: 'maya_tr_1gb_7d', name: 'Turkey Lite', dataGb: 1, durationDays: 7, priceUsd: 3.90 },
-      { id: 'maya_tr_5gb_30d', name: 'Turkey Smart', dataGb: 5, durationDays: 30, priceUsd: 9.90 },
-      { id: 'maya_tr_10gb_30d', name: 'Turkey Premium', dataGb: 10, durationDays: 30, priceUsd: 17.50 },
+      { id: 'yesim_tr_1gb_7d', name: 'Turkey Lite', dataGb: 1, durationDays: 7, priceUsd: 3.90 },
+      { id: 'yesim_tr_5gb_30d', name: 'Turkey Smart', dataGb: 5, durationDays: 30, priceUsd: 9.90 },
+      { id: 'yesim_tr_10gb_30d', name: 'Turkey Premium', dataGb: 10, durationDays: 30, priceUsd: 17.50 },
     ],
   },
   {
@@ -55,9 +56,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'FR',
     flag: '🇫🇷',
     plans: [
-      { id: 'maya_fr_1gb_7d', name: 'France Lite', dataGb: 1, durationDays: 7, priceUsd: 4.40 },
-      { id: 'maya_fr_5gb_30d', name: 'France Smart', dataGb: 5, durationDays: 30, priceUsd: 11.50 },
-      { id: 'maya_fr_10gb_30d', name: 'France Premium', dataGb: 10, durationDays: 30, priceUsd: 20.00 },
+      { id: 'yesim_fr_1gb_7d', name: 'France Lite', dataGb: 1, durationDays: 7, priceUsd: 4.40 },
+      { id: 'yesim_fr_5gb_30d', name: 'France Smart', dataGb: 5, durationDays: 30, priceUsd: 11.50 },
+      { id: 'yesim_fr_10gb_30d', name: 'France Premium', dataGb: 10, durationDays: 30, priceUsd: 20.00 },
     ],
   },
   {
@@ -65,9 +66,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'JP',
     flag: '🇯🇵',
     plans: [
-      { id: 'maya_jp_1gb_7d', name: 'Japan Lite', dataGb: 1, durationDays: 7, priceUsd: 5.90 },
-      { id: 'maya_jp_5gb_30d', name: 'Japan Smart', dataGb: 5, durationDays: 30, priceUsd: 14.50 },
-      { id: 'maya_jp_10gb_30d', name: 'Japan Premium', dataGb: 10, durationDays: 30, priceUsd: 26.00 },
+      { id: 'yesim_jp_1gb_7d', name: 'Japan Lite', dataGb: 1, durationDays: 7, priceUsd: 5.90 },
+      { id: 'yesim_jp_5gb_30d', name: 'Japan Smart', dataGb: 5, durationDays: 30, priceUsd: 14.50 },
+      { id: 'yesim_jp_10gb_30d', name: 'Japan Premium', dataGb: 10, durationDays: 30, priceUsd: 26.00 },
     ],
   },
   {
@@ -75,9 +76,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'DE',
     flag: '🇩🇪',
     plans: [
-      { id: 'maya_de_1gb_7d', name: 'Germany Lite', dataGb: 1, durationDays: 7, priceUsd: 4.50 },
-      { id: 'maya_de_5gb_30d', name: 'Germany Smart', dataGb: 5, durationDays: 30, priceUsd: 11.90 },
-      { id: 'maya_de_10gb_30d', name: 'Germany Premium', dataGb: 10, durationDays: 30, priceUsd: 21.00 },
+      { id: 'yesim_de_1gb_7d', name: 'Germany Lite', dataGb: 1, durationDays: 7, priceUsd: 4.50 },
+      { id: 'yesim_de_5gb_30d', name: 'Germany Smart', dataGb: 5, durationDays: 30, priceUsd: 11.90 },
+      { id: 'yesim_de_10gb_30d', name: 'Germany Premium', dataGb: 10, durationDays: 30, priceUsd: 21.00 },
     ],
   },
   {
@@ -85,9 +86,9 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'ES',
     flag: '🇪🇸',
     plans: [
-      { id: 'maya_es_1gb_7d', name: 'Spain Lite', dataGb: 1, durationDays: 7, priceUsd: 4.30 },
-      { id: 'maya_es_5gb_30d', name: 'Spain Smart', dataGb: 5, durationDays: 30, priceUsd: 11.00 },
-      { id: 'maya_es_10gb_30d', name: 'Spain Premium', dataGb: 10, durationDays: 30, priceUsd: 19.90 },
+      { id: 'yesim_es_1gb_7d', name: 'Spain Lite', dataGb: 1, durationDays: 7, priceUsd: 4.30 },
+      { id: 'yesim_es_5gb_30d', name: 'Spain Smart', dataGb: 5, durationDays: 30, priceUsd: 11.00 },
+      { id: 'yesim_es_10gb_30d', name: 'Spain Premium', dataGb: 10, durationDays: 30, priceUsd: 19.90 },
     ],
   },
   {
@@ -95,23 +96,102 @@ const SUPPORTED_COUNTRIES: CountryItem[] = [
     code: 'IT',
     flag: '🇮🇹',
     plans: [
-      { id: 'maya_it_1gb_7d', name: 'Italy Lite', dataGb: 1, durationDays: 7, priceUsd: 4.20 },
-      { id: 'maya_it_5gb_30d', name: 'Italy Smart', dataGb: 5, durationDays: 30, priceUsd: 10.90 },
-      { id: 'maya_it_10gb_30d', name: 'Italy Premium', dataGb: 10, durationDays: 30, priceUsd: 19.50 },
+      { id: 'yesim_it_1gb_7d', name: 'Italy Lite', dataGb: 1, durationDays: 7, priceUsd: 4.20 },
+      { id: 'yesim_it_5gb_30d', name: 'Italy Smart', dataGb: 5, durationDays: 30, priceUsd: 10.90 },
+      { id: 'yesim_it_10gb_30d', name: 'Italy Premium', dataGb: 10, durationDays: 30, priceUsd: 19.50 },
     ],
   },
 ];
 
 export default function Home() {
+  const [countries, setCountries] = useState<CountryItem[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<CountryItem | null>(null);
+  const [plans, setPlans] = useState<PlanItem[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<PlanItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isOpenCountryDropdown, setIsOpenCountryDropdown] = useState(false);
   const [isOpenPlanDropdown, setIsOpenPlanDropdown] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+  const [loadingPlans, setLoadingPlans] = useState(false);
 
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const planDropdownRef = useRef<HTMLDivElement>(null);
+
+  function getCountryFlagEmoji(code: string): string {
+    if (!code || code.length !== 2) return '🌐';
+    const codePoints = code
+      .toUpperCase()
+      .split('')
+      .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  }
+
+  // Fetch countries list on mount
+  useEffect(() => {
+    async function fetchCountries() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/catalog/countries`);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            const mapped = json.data.map((c: any) => ({
+              name: c.name,
+              code: c.code,
+              flag: c.flag || c.flagUrl || getCountryFlagEmoji(c.code),
+              plans: [],
+            }));
+            setCountries(mapped);
+            setLoadingCountries(false);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback
+      setCountries(STATIC_FALLBACK_COUNTRIES);
+      setLoadingCountries(false);
+    }
+    fetchCountries();
+  }, []);
+
+  // Fetch plans when country changes
+  useEffect(() => {
+    if (!selectedCountry) {
+      setPlans([]);
+      setSelectedPlan(null);
+      return;
+    }
+
+    async function fetchPlans() {
+      setLoadingPlans(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/catalog/plans?country=${selectedCountry!.code}`);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            const mappedPlans = json.data.map((p: any) => ({
+              id: p.id,
+              name: p.name || `${p.dataAmount || p.dataGb || 1} ${p.dataUnit || 'GB'} - ${p.durationDays || 7} Days`,
+              dataGb: p.dataAmount || p.dataGb || 1,
+              durationDays: p.durationDays || 7,
+              priceUsd: p.price ?? p.priceUsd ?? 5.0,
+            }));
+            setPlans(mappedPlans);
+            setLoadingPlans(false);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback matching selectedCountry static fallback plans
+      const staticCountry = STATIC_FALLBACK_COUNTRIES.find((c) => c.code === selectedCountry!.code);
+      setPlans(staticCountry ? staticCountry.plans : []);
+      setLoadingPlans(false);
+    }
+
+    fetchPlans();
+  }, [selectedCountry]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -127,7 +207,7 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredCountries = SUPPORTED_COUNTRIES.filter((c) =>
+  const filteredCountries = countries.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -146,13 +226,15 @@ export default function Home() {
           planId: selectedPlan.id,
           countryCode: selectedCountry.code,
           amount: selectedPlan.priceUsd,
+          currency: 'USD',
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.data?.url) {
-          window.location.href = data.data.url; // Redirect to Stripe Checkout
+        const checkoutUrl = data.data?.url || data.url;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl; // Redirect to Stripe Checkout
           return;
         }
       }
@@ -243,27 +325,34 @@ export default function Home() {
                   </div>
 
                   <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1 flex flex-col">
-                    {filteredCountries.map((country) => (
-                      <button
-                        key={country.code}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCountry(country);
-                          setSelectedPlan(null);
-                          setIsOpenCountryDropdown(false);
-                          setSearchQuery('');
-                        }}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors cursor-pointer ${
-                          selectedCountry?.code === country.code
-                            ? 'bg-[#1e63ff]/10 text-[#1e63ff]'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <span className="text-xl leading-none">{country.flag}</span>
-                        <span>{country.name}</span>
-                      </button>
-                    ))}
-                    {filteredCountries.length === 0 && (
+                    {loadingCountries ? (
+                      <div className="flex items-center justify-center py-6 text-slate-400 gap-2 text-xs font-semibold">
+                        <PremiumLoader size={16} color="#1e63ff" />
+                        <span>Loading countries...</span>
+                      </div>
+                    ) : (
+                      filteredCountries.map((country) => (
+                        <button
+                          key={country.code}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCountry(country);
+                            setSelectedPlan(null);
+                            setIsOpenCountryDropdown(false);
+                            setSearchQuery('');
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors cursor-pointer ${
+                            selectedCountry?.code === country.code
+                              ? 'bg-[#1e63ff]/10 text-[#1e63ff]'
+                              : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <span className="text-xl leading-none">{country.flag}</span>
+                          <span>{country.name}</span>
+                        </button>
+                      ))
+                    )}
+                    {!loadingCountries && filteredCountries.length === 0 && (
                       <div className="text-center py-6 text-slate-400 text-xs font-medium">
                         No destinations found
                       </div>
@@ -306,29 +395,40 @@ export default function Home() {
 
               {isOpenPlanDropdown && selectedCountry && (
                 <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 max-h-56 overflow-y-auto custom-scrollbar flex flex-col">
-                  {selectedCountry.plans.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan(plan);
-                        setIsOpenPlanDropdown(false);
-                      }}
-                      className={`flex flex-col gap-0.5 px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                        selectedPlan?.id === plan.id
-                          ? 'bg-[#1e63ff]/10 text-[#1e63ff]'
-                          : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center text-sm font-semibold">
-                        <span>{plan.name}</span>
-                        <span>${plan.priceUsd.toFixed(2)}</span>
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        {plan.dataGb} GB • Valid for {plan.durationDays} days
-                      </span>
-                    </button>
-                  ))}
+                  {loadingPlans ? (
+                    <div className="flex items-center justify-center py-6 text-slate-400 gap-2 text-xs font-semibold">
+                      <PremiumLoader size={16} color="#1e63ff" />
+                      <span>Loading plans...</span>
+                    </div>
+                  ) : plans.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-xs font-medium">
+                      No plans available
+                    </div>
+                  ) : (
+                    plans.map((plan) => (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan(plan);
+                          setIsOpenPlanDropdown(false);
+                        }}
+                        className={`flex flex-col gap-0.5 px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                          selectedPlan?.id === plan.id
+                            ? 'bg-[#1e63ff]/10 text-[#1e63ff]'
+                            : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-sm font-semibold">
+                          <span>{plan.name}</span>
+                          <span>${plan.priceUsd.toFixed(2)}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {plan.dataGb} GB • Valid for {plan.durationDays} days
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -354,7 +454,7 @@ export default function Home() {
               >
                 {checkoutLoading ? (
                   <>
-                    <Loader2 size={18} className="animate-spin" />
+                    <PremiumLoader size={18} color="#ffffff" />
                     <span>Processing...</span>
                   </>
                 ) : selectedPlan ? (

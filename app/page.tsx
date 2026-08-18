@@ -118,6 +118,15 @@ export default function Home() {
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const planDropdownRef = useRef<HTMLDivElement>(null);
 
+  function getCountryFlagEmoji(code: string): string {
+    if (!code || code.length !== 2) return '🌐';
+    const codePoints = code
+      .toUpperCase()
+      .split('')
+      .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  }
+
   // Fetch countries list on mount
   useEffect(() => {
     async function fetchCountries() {
@@ -125,11 +134,11 @@ export default function Home() {
         const response = await fetch(`${API_BASE_URL}/catalog/countries`);
         if (response.ok) {
           const json = await response.json();
-          if (json.success && Array.isArray(json.data)) {
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
             const mapped = json.data.map((c: any) => ({
               name: c.name,
               code: c.code,
-              flag: c.flagUrl || '🌐',
+              flag: c.flag || c.flagUrl || getCountryFlagEmoji(c.code),
               plans: [],
             }));
             setCountries(mapped);
@@ -160,8 +169,15 @@ export default function Home() {
         const response = await fetch(`${API_BASE_URL}/catalog/plans?country=${selectedCountry!.code}`);
         if (response.ok) {
           const json = await response.json();
-          if (json.success && Array.isArray(json.data)) {
-            setPlans(json.data);
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            const mappedPlans = json.data.map((p: any) => ({
+              id: p.id,
+              name: p.name || `${p.dataAmount || p.dataGb || 1} ${p.dataUnit || 'GB'} - ${p.durationDays || 7} Days`,
+              dataGb: p.dataAmount || p.dataGb || 1,
+              durationDays: p.durationDays || 7,
+              priceUsd: p.price ?? p.priceUsd ?? 5.0,
+            }));
+            setPlans(mappedPlans);
             setLoadingPlans(false);
             return;
           }
@@ -210,13 +226,15 @@ export default function Home() {
           planId: selectedPlan.id,
           countryCode: selectedCountry.code,
           amount: selectedPlan.priceUsd,
+          currency: 'USD',
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.data?.url) {
-          window.location.href = data.data.url; // Redirect to Stripe Checkout
+        const checkoutUrl = data.data?.url || data.url;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl; // Redirect to Stripe Checkout
           return;
         }
       }

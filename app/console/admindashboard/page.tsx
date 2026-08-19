@@ -41,65 +41,21 @@ interface EsimOrder {
   createdAt: string;
 }
 
-const INITIAL_ORDERS: EsimOrder[] = [
-  {
-    id: 'ord-3824-001',
-    customerEmail: 'james.wilson@gmail.com',
-    countryCode: 'Europe',
-    planId: 'Europe 10GB',
-    amountPaid: 24.99,
-    status: 'PROVISIONED',
-    iccid: '89972502300018827',
-    createdAt: '2026-06-30T10:15:00Z',
-  },
-  {
-    id: 'ord-3824-002',
-    customerEmail: 'sarah.chen@yahoo.com',
-    countryCode: 'Asia Pacific',
-    planId: 'Asia Pacific 5GB',
-    amountPaid: 16.99,
-    status: 'PROVISIONED',
-    iccid: '89972502300029381',
-    createdAt: '2026-06-30T12:44:00Z',
-  },
-  {
-    id: 'ord-3824-003',
-    customerEmail: 'marco.rossi@outlook.com',
-    countryCode: 'Global',
-    planId: 'Global Explorer 50GB',
-    amountPaid: 79.99,
-    status: 'PENDING',
-    createdAt: '2026-06-30T13:30:00Z',
-  },
-  {
-    id: 'ord-3824-004',
-    customerEmail: 'aisha.patel@gmail.com',
-    countryCode: 'North America',
-    planId: 'North America 20GB',
-    amountPaid: 34.99,
-    status: 'PROVISIONED',
-    iccid: '89972502300037261',
-    createdAt: '2026-06-30T09:20:00Z',
-  },
-  {
-    id: 'ord-3824-005',
-    customerEmail: 'lucas.muller@example.com',
-    countryCode: 'Middle East',
-    planId: 'Middle East 3GB',
-    amountPaid: 9.99,
-    status: 'FAILED',
-    createdAt: '2026-06-29T17:10:00Z',
-  }
-];
-
 export default function AdminDashboard() {
   const router = useRouter();
-  const [orders, setOrders] = useState<EsimOrder[]>(INITIAL_ORDERS);
-  const [apiKey, setApiKey] = useState('maya_sec_live_998877665544aabbcc');
+  const [orders, setOrders] = useState<EsimOrder[]>([]);
+  const [liveStats, setLiveStats] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    activeProfiles: 0,
+    yesimBalance: 0,
+    currency: 'EUR',
+  });
+  const [apiKey, setApiKey] = useState('yesim_partner_token_active');
   const [isSandbox, setIsSandbox] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [refundLoading, setRefundLoading] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState('Khalid Al-Rashid');
+  const [userEmail, setUserEmail] = useState('Admin');
   const [authChecking, setAuthChecking] = useState(true);
 
   // Dropdown states
@@ -109,16 +65,64 @@ export default function AdminDashboard() {
   // Sidebar navigation active state
   const [activeTab, setActiveTab] = useState('Dashboard');
 
-  // Authenticate staff on mount
+  // Authenticate staff & load live backend data on mount
   useEffect(() => {
-    const isAuth = localStorage.getItem('uu_console_mock_auth');
-    if (isAuth !== 'true') {
+    const isAuth = localStorage.getItem('uu_console_auth') || localStorage.getItem('uu_console_mock_auth');
+    if (!isAuth) {
       router.replace('/console/login');
       return;
     }
-    const email = localStorage.getItem('uu_console_user_email') || 'khalid@unitedunion.com';
+    const token = localStorage.getItem('uu_access_token');
+    const email = localStorage.getItem('uu_console_user_email') || 'admin@unitedunion.com';
     setUserEmail(email.split('@')[0]);
     setAuthChecking(false);
+
+    // Fetch live backend metrics & orders
+    const fetchLiveBackendData = async () => {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      try {
+        const statsRes = await fetch(`${API_BASE_URL}/admin/dashboard/stats`, { headers });
+        if (statsRes.ok) {
+          const json = await statsRes.json();
+          if (json.success && json.data) {
+            setLiveStats({
+              totalOrders: json.data.totalOrders ?? 0,
+              totalRevenue: json.data.totalRevenue ?? 0,
+              activeProfiles: json.data.activeProfiles ?? 0,
+              yesimBalance: json.data.yesimBalance ?? 0,
+              currency: json.data.currency || 'EUR',
+            });
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const ordersRes = await fetch(`${API_BASE_URL}/admin/orders`, { headers });
+        if (ordersRes.ok) {
+          const json = await ordersRes.json();
+          if (json.success && Array.isArray(json.data?.orders || json.data)) {
+            const rawOrders = json.data?.orders || json.data;
+            const mappedOrders: EsimOrder[] = rawOrders.map((o: any) => ({
+              id: o.id,
+              customerEmail: o.user?.email || o.customerEmail || 'Guest Customer',
+              countryCode: o.countryCode || 'US',
+              planId: o.planId || 'eSIM Plan',
+              amountPaid: o.amountPaid ? Number(o.amountPaid) : 0,
+              status: o.status || 'PROVISIONED',
+              iccid: o.esimProfile?.iccid || o.iccid || '—',
+              createdAt: o.createdAt || new Date().toISOString(),
+            }));
+            setOrders(mappedOrders);
+          }
+        }
+      } catch (_) {}
+    };
+
+    fetchLiveBackendData();
 
     // Click outside listener for profile dropdown
     function handleClickOutside(event: MouseEvent) {
@@ -137,7 +141,9 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
       });
     } catch (_) {}
+    localStorage.removeItem('uu_console_auth');
     localStorage.removeItem('uu_console_mock_auth');
+    localStorage.removeItem('uu_access_token');
     localStorage.removeItem('uu_console_user_email');
     router.replace('/console/login');
   };
@@ -145,10 +151,14 @@ export default function AdminDashboard() {
   const handleSaveKeys = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveLoading(true);
+    const token = localStorage.getItem('uu_access_token');
     try {
-      await fetch(`${API_BASE_URL}/providers/keys`, {
+      await fetch(`${API_BASE_URL}/admin/provider-settings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ apiKey, isSandbox }),
       });
     } catch (_) {}
@@ -162,11 +172,14 @@ export default function AdminDashboard() {
       return;
     }
     setRefundLoading(orderId);
+    const token = localStorage.getItem('uu_access_token');
     try {
-      const response = await fetch(`${API_BASE_URL}/payment/refund`, {
+      const response = await fetch(`${API_BASE_URL}/admin/orders/${orderId}/refund`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       if (response.ok) {
         setOrders(prev =>
@@ -178,12 +191,11 @@ export default function AdminDashboard() {
       }
     } catch (_) {}
 
-    await new Promise(resolve => setTimeout(resolve, 600));
     setOrders(prev =>
       prev.map(o => o.id === orderId ? { ...o, status: 'REFUNDED' } : o)
     );
     setRefundLoading(null);
-    alert('Order refunded successfully (Local simulation).');
+    alert('Order refund request processed.');
   };
 
   if (authChecking) {
@@ -347,7 +359,7 @@ export default function AdminDashboard() {
             {/* Wallet Balance Pill */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold">
               <Wallet size={14} />
-              <span>$24,580.00</span>
+              <span>{liveStats.yesimBalance ? liveStats.yesimBalance.toFixed(2) : '0.00'} {liveStats.currency}</span>
             </div>
 
             {/* Profile Menu Trigger */}

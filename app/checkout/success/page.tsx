@@ -71,23 +71,15 @@ function CheckoutSuccessContent() {
         // Network error/backend offline
       }
 
-      // After 10 attempts (20s), if not found, stop polling
+      // After 10 attempts (20s), if not found, stop polling and display unconfirmed/processing state
       if (attempts >= 10) {
         clearInterval(interval);
-        setOrder({
-          id: sessionId.startsWith('cs_') ? sessionId : `ord_${sessionId}`,
-          planId: queryPlanId,
-          countryCode: queryCountry,
-          amountPaid: parseFloat(queryAmount),
-          createdAt: new Date().toISOString(),
-          status: 'PROVISIONED',
-        });
         setLoading(false);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [sessionId, queryPlanId, queryCountry, queryAmount]);
+  }, [sessionId]);
 
   const copyPermalink = () => {
     if (!order) return;

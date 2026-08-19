@@ -94,23 +94,9 @@ function EsimDetailsContent() {
         // Fallback simulation if backend offline
       }
 
-      // After 3 attempts (6s), fall back to simulation
-      if (attempts >= 3) {
+      // After 5 attempts (10s), stop polling if order is not found
+      if (attempts >= 5) {
         clearInterval(interval);
-        
-        // Parse plan details from default codes (e.g. maya_us_5gb_30d)
-        setOrder({
-          id: orderId,
-          planId: 'maya_us_5gb_30d',
-          countryCode: 'US',
-          status: 'PROVISIONED',
-          amountPaid: 12.50,
-          iccid: '8997250230000' + Math.floor(1000000 + Math.random() * 9000000),
-          smDpAddress: 'rsp.truphone.com',
-          activationCode: 'MOCK_LPA_CODE_998877',
-          stripeSessionId: `cs_test_${Math.random().toString(36).substring(2, 12)}`,
-          createdAt: new Date().toISOString(),
-        });
         setLoading(false);
       }
     }, 2000);
@@ -243,8 +229,18 @@ Thank you for traveling with United Union eSIM!
   const activationCode = order?.activationCode || order?.esimProfile?.activationCode || 'LPA_CODE_PENDING';
   const lpaString = `LPA:1$${smDpAddress}$${activationCode}`;
 
-  // Extract GB size for progress bar
-  const dataLimitGb = order?.planId?.match(/(\d+)gb/i) ? parseInt(order.planId.match(/(\d+)gb/i)[1], 10) : 5;
+  // Extract GB size for progress bar & live usage calculations
+  const dataTotalBytes = order?.dataTotalBytes || order?.esimProfile?.dataTotalBytes || 0;
+  const dataUsedBytes = order?.dataUsedBytes || order?.esimProfile?.dataUsedBytes || 0;
+  const dataRemainingBytes = order?.dataRemainingBytes || order?.esimProfile?.dataRemainingBytes || 0;
+
+  const dataLimitGb = dataTotalBytes > 0 
+    ? (dataTotalBytes / (1024 * 1024 * 1024)).toFixed(1)
+    : (order?.planId?.match(/(\d+)gb/i) ? order.planId.match(/(\d+)gb/i)[1] : '5');
+
+  const usedMb = dataUsedBytes > 0 ? (dataUsedBytes / (1024 * 1024)).toFixed(1) : '0';
+  const usedPercent = dataTotalBytes > 0 ? Math.min(Math.round((dataUsedBytes / dataTotalBytes) * 100), 100) : 0;
+  const remainingPercent = 100 - usedPercent;
 
   return (
     <div className="flex flex-col min-h-screen relative p-6 md:p-8 select-none justify-between">
@@ -345,17 +341,17 @@ Thank you for traveling with United Union eSIM!
                   <BarChart4 size={14} className="text-[#1e63ff]" />
                   <span>Data</span>
                 </div>
-                <span className="font-bold text-slate-800">0 MB / {dataLimitGb} GB</span>
+                <span className="font-bold text-slate-800">{usedMb} MB / {dataLimitGb} GB</span>
               </div>
 
               {/* Progress bar */}
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full w-0 bg-[#1e63ff] rounded-full"></div>
+                <div className="h-full bg-[#1e63ff] rounded-full transition-all duration-500" style={{ width: `${usedPercent}%` }}></div>
               </div>
 
               <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span>100% remaining</span>
-                <span>0% used</span>
+                <span>{remainingPercent}% remaining</span>
+                <span>{usedPercent}% used</span>
               </div>
             </div>
           )}

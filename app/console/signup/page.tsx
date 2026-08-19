@@ -25,36 +25,32 @@ export default function ConsoleSignup() {
     setInfoMsg(null);
 
     try {
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || name;
+      const lastName = nameParts.slice(1).join(' ') || 'User';
+
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ email, password, firstName, lastName }),
       });
 
       const data = await response.json();
       if (response.ok && data.success) {
         setSuccessMsg('Account created successfully! Redirecting to login...');
-        setLoading(false);
         setTimeout(() => {
           router.push('/console/login');
         }, 1500);
         return;
       } else {
         setErrorMsg(data.message || 'Registration failed. Try using another email.');
-        setLoading(false);
-        return;
       }
     } catch (_) {
-      // Backend offline: simulated fallback mode
-      setInfoMsg('Simulated Mode: Backend offline. Creating local account...');
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      setSuccessMsg('Registration completed! Redirecting to login...');
+      setErrorMsg('Unable to connect to authentication server. Please check your network connection.');
+    } finally {
       setLoading(false);
-      setTimeout(() => {
-        router.push('/console/login');
-      }, 1500);
     }
   };
 

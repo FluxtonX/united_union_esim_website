@@ -230,22 +230,21 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      if (response.ok && data.success) {
         const checkoutUrl = data.data?.url || data.url;
         if (checkoutUrl) {
           window.location.href = checkoutUrl; // Redirect to Stripe Checkout
           return;
         }
       }
-    } catch (_) {
-      // Offline/simulation fallback
-    }
 
-    // Local simulation fallback
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const mockSessionId = `cs_test_${Math.random().toString(36).substring(2, 12)}`;
-    window.location.href = `/checkout/success?session_id=${mockSessionId}&plan_id=${selectedPlan.id}&country=${selectedCountry.code}&amount=${selectedPlan.priceUsd}`;
+      alert(data.message || 'Failed to initialize payment gateway. Please try again.');
+    } catch (err) {
+      alert('Unable to connect to payment server. Please check your internet connection.');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   return (

@@ -32,22 +32,21 @@ export default function ConsoleLogin() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        localStorage.setItem('uu_console_mock_auth', 'true');
+        const token = data.data?.accessToken || data.token;
+        if (token) {
+          localStorage.setItem('uu_access_token', token);
+        }
+        localStorage.setItem('uu_console_auth', 'true');
         localStorage.setItem('uu_console_user_email', email);
         router.push('/console/admindashboard');
         return;
       } else {
         setErrorMsg(data.message || 'Invalid credentials. Please try again.');
-        setLoading(false);
-        return;
       }
     } catch (_) {
-      // Backend offline: simulated fallback mode
-      setInfoMsg('Simulated Mode: Backend offline. Logging in locally...');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      localStorage.setItem('uu_console_mock_auth', 'true');
-      localStorage.setItem('uu_console_user_email', email);
-      router.push('/console/admindashboard');
+      setErrorMsg('Unable to connect to authentication server. Please verify your connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
